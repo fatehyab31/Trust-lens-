@@ -19,9 +19,9 @@ app.use(express.json({ limit: "10mb" }));
 
 // Health check
 app.get("/api/health", (_req, res) => {
-  res.json({ 
-    status: "ok", 
-  mode: process.env.GEMINI_API_KEY ? "gemini" : "mock",
+  res.json({
+    status: "ok",
+    mode: process.env.GEMINI_API_KEY ? "gemini" : "mock",
   });
 });
 
@@ -38,9 +38,14 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
-app.listen(PORT, () => {
-  const textMode = process.env.GEMINI_API_KEY ? "GEMINI" : "MOCK";
-  console.log(`TrustLens AI backend running on port ${PORT}`);
-  console.log(`  Text analysis: ${textMode} mode`);
-});
+// Only start a listener when running as a normal server (local, Render, etc.).
+// On Vercel, the exported app is used as the serverless function.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    const textMode = process.env.GEMINI_API_KEY ? "GEMINI" : "MOCK";
+    console.log(`TrustLens AI backend running on port ${PORT}`);
+    console.log(`  Text analysis: ${textMode} mode`);
+  });
+}
+
 export default app;
