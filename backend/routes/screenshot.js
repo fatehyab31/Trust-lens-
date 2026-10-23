@@ -1,17 +1,15 @@
 import { Router } from "express";
 import multer from "multer";
-import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import { createWorker } from "tesseract.js";
 import { analyzeText } from "../lib/llm-analyzer.js";
 import { analyzeUrl } from "../lib/url-checker.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = Router();
 
+// Vercel's filesystem is read-only except /tmp, so uploads go there.
 const upload = multer({
-  dest: path.join(__dirname, "..", "uploads"),
+  dest: "/tmp",
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: (_req, file, cb) => {
     const allowed = ["image/jpeg", "image/png", "image/webp", "image/bmp"];
@@ -74,10 +72,16 @@ router.post("/", upload.single("image"), async (req, res) => {
     const lang = req.body?.lang || "en";
     const ocrLang = getOcrLang(lang);
 
-    // Run OCR with tesseract.js (multilingual)
-    const worker = await createWorker(ocrLang);
-    const { data: { text } } = await worker.recognize(filePath);
-    await worker.terminate();
+    // Run OCR with tesseract.js (multilingual). The language data cache goes
+    // to /tmp because the rest of the filesystem is read-only on Vercel.
+    const worker = await createWorker(ocrLang, 1, { cachePath: "/tmp" });
+    let text;
+    try {
+      const result = await worker.recognize(filePath);
+      text = result.data.text;
+    } finally {
+      await worker.terminate();
+    }
 
     cleanup(filePath);
 
