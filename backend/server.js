@@ -43,3 +43,4 @@ app.listen(PORT, () => {
   console.log(`TrustLens AI backend running on port ${PORT}`);
   console.log(`  Text analysis: ${textMode} mode`);
 });
+export default app;
